@@ -175,3 +175,170 @@ class ShortTermRent:
 		Response = self.__Requests("POST", f"https://api.avito.ru/realty/v1/accounts/{self.__Profile}/items/{item_id}/prices", json = Body)
 		
 		return Response
+
+class Messenger:
+	"""Модуль API: мессенджер Авито."""
+	
+	def __init__(self, profile: int | str, session: any = None):
+		"""
+		Модуль API: мессенджер.
+			profile – номер профиля Авито;
+			session – указатель на готовую сессию библиотеки requests.
+		"""
+		# Номер профиля авито.
+		self.__Profile = int(profile)
+		# Модуль выполнения запросов.
+		self.__Requests = session if session != None else requests.Session()
+
+	def get_chats(self, limit: int = 100, offset: int = 0, item_ids: list = None):
+		"""Получение списка чатов"""
+		params = {
+			'limit': limit,
+			'offset': offset
+		}
+		
+		# unread_only не поддерживается API (возвращает 400)
+		if item_ids:
+			params['item_ids'] = ','.join(map(str, item_ids))
+		
+		response = self.__Requests("GET", f"https://api.avito.ru/messenger/v2/accounts/{self.__Profile}/chats", params=params)
+		
+		if response.status_code == 200:
+			data = response.json()
+			return data.get('chats', [])
+		
+		return response
+
+	def get_messages(self, chat_id: str, limit: int = 100, offset: int = 0):
+		"""Получение сообщений из чата"""
+		params = {
+			'limit': limit,
+			'offset': offset
+		}
+		
+		response = self.__Requests("GET", f"https://api.avito.ru/messenger/v3/accounts/{self.__Profile}/chats/{chat_id}/messages", params=params)
+		
+		if response.status_code == 200:
+			return response.json()
+		
+		return response
+
+	def send_message(self, chat_id: str, text: str):
+		"""Отправка текстового сообщения"""
+		if len(text) > 1000:
+			raise ValueError("Максимальная длина сообщения 1000 символов")
+		
+		body = {
+			"message": {
+				"text": text
+			},
+			"type": "text"
+		}
+		
+		response = self.__Requests("POST", f"https://api.avito.ru/messenger/v1/accounts/{self.__Profile}/chats/{chat_id}/messages", json=body)
+		
+		return response
+
+	def mark_chat_read(self, chat_id: str):
+		"""Пометить чат как прочитанный"""
+		response = self.__Requests("POST", f"https://api.avito.ru/messenger/v1/accounts/{self.__Profile}/chats/{chat_id}/read")
+		
+		return response
+
+	def upload_image(self, file_path: str):
+		"""Загрузка изображения для отправки"""
+		with open(file_path, 'rb') as file:
+			files = {'uploadfile[]': file}
+			response = self.__Requests("POST", f"https://api.avito.ru/messenger/v1/accounts/{self.__Profile}/uploadImages", files=files)
+		
+		return response
+
+	def send_image_message(self, chat_id: str, image_id: str):
+		"""Отправка сообщения с изображением"""
+		body = {
+			"image_id": image_id
+		}
+		
+		response = self.__Requests("POST", f"https://api.avito.ru/messenger/v1/accounts/{self.__Profile}/chats/{chat_id}/messages/image", json=body)
+		
+		return response
+
+
+class Job:
+	"""Модуль API: работа/вакансии Авито."""
+	
+	def __init__(self, profile: int | str, session: any = None):
+		"""
+		Модуль API: вакансии и отклики.
+			profile – номер профиля Авито;
+			session – указатель на готовую сессию библиотеки requests.
+		"""
+		# Номер профиля авито.
+		self.__Profile = int(profile)
+		# Модуль выполнения запросов.
+		self.__Requests = session if session != None else requests.Session()
+
+	def get_application_ids(self, updated_at_from: str = None, cursor: str = None, limit: int = 100):
+		"""Получение идентификаторов откликов"""
+		# Если updated_at_from не передан, используем дату 30 дней назад
+		if not updated_at_from:
+			from datetime import datetime, timedelta
+			updated_at_from = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+		
+		params = {
+			'limit': limit
+		}
+		
+		# updatedAtFrom обязателен
+		params['updatedAtFrom'] = updated_at_from
+			
+		if cursor:
+			params['cursor'] = cursor
+		
+		response = self.__Requests("GET", "https://api.avito.ru/job/v1/applications/get_ids", params=params)
+		
+		return response
+
+	def get_applications_by_ids(self, application_ids: list):
+		"""Получение откликов по идентификаторам"""
+		if len(application_ids) > 100:
+			raise ValueError("Максимальное количество ID в запросе: 100")
+		
+		body = {
+			"ids": application_ids
+		}
+		
+		response = self.__Requests("POST", "https://api.avito.ru/job/v1/applications/get_by_ids", json=body)
+		
+		if response.status_code == 200:
+			data = response.json()
+			return data.get('applications', [])
+		
+		return response
+
+	def set_application_viewed(self, application_ids: list):
+		"""Пометить отклики как просмотренные"""
+		if len(application_ids) > 100:
+			raise ValueError("Максимальное количество ID в запросе: 100")
+		
+		body = {
+			"ids": application_ids
+		}
+		
+		response = self.__Requests("POST", "https://api.avito.ru/job/v1/applications/set_is_viewed", json=body)
+		
+		return response
+
+	def get_vacancies(self, status: str = None, limit: int = 100):
+		"""Получение списка вакансий (примерный метод, нужно уточнить в API)"""
+		params = {
+			'limit': limit
+		}
+		
+		if status:
+			params['status'] = status
+		
+		# Это примерный путь, нужно найти правильный в документации
+		response = self.__Requests("GET", f"https://api.avito.ru/job/v1/accounts/{self.__Profile}/vacancies", params=params)
+		
+		return response

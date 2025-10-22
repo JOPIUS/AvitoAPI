@@ -1,6 +1,6 @@
 from . import Logger
 
-from AvitoAPI.Modules import Info, ShortTermRent
+from AvitoAPI.Modules import Info, ShortTermRent, Messenger, Job
 from threading import Thread
 from time import sleep
 
@@ -28,6 +28,18 @@ class Profile:
 		"""Модуль API: краткосрочная аренда."""
 		
 		return ShortTermRent(self.__Profile, self.request)
+
+	@property
+	def messenger(self) -> Messenger:
+		"""Модуль API: мессенджер."""
+		
+		return Messenger(self.__Profile, self.request)
+
+	@property
+	def job(self) -> Job:
+		"""Модуль API: Авито.Работа."""
+		
+		return Job(self.__Profile, self.request)
 
 	#==========================================================================================#
 	# >>>>> ПРИВАТНЫЕ МЕТОДЫ <<<<< #
@@ -170,18 +182,28 @@ class Profile:
 		Обновляет токен доступа Авито.
 		"""
 		
-		# Параметры запроса.
+		# Параметры запроса для приложения (не персональный доступ).
 		Params = {
 			"grant_type": "client_credentials",
 			"client_id": self.__ClientID,
-			"client_secret": self.__ClientSecret
+			"client_secret": self.__ClientSecret,
+			"scope": "messenger:read messenger:write job:applications user:read"
 		}
 		# Заголовки запроса.
 		Headers = {
 			"Content-Type": "application/x-www-form-urlencoded"
 		}
-		# Запрос нового токена доступа.
-		Response = self.__Session.post("https://api.avito.ru/token/", headers = Headers, params = Params)
+		
+		print(f"Запрос токена для профиля {self.__Profile}")
+		print(f"URL: https://api.avito.ru/token/")
+		print(f"Client ID: {self.__ClientID}")
+		print(f"Grant type: {Params['grant_type']}")
+		
+		# Запрос нового токена доступа (передаём данные в body, а не в params).
+		Response = self.__Session.post("https://api.avito.ru/token/", headers = Headers, data = Params)
+		
+		print(f"Статус ответа: {Response.status_code}")
+		print(f"Текст ответа: {Response.text}")
 		
 		# Проверка ответа.
 		if Response.status_code == 200:
@@ -215,13 +237,26 @@ class Profile:
 			json – словарь для сериализации в JSON и отправки в качестве тела запроса.
 		"""
 		
+		print(f"API Request: {method.upper()} {url}")
+		
 		# Инициализация загловков.
 		if headers == None: headers = dict()
 		# Удаление заголовка авторизации в нижнем регистре.
 		if "authorization" in headers.keys(): del headers["authorization"]
 		# Подстановка токена.
-		headers["Authorization"] = self.get_access_token()
+		token = self.get_access_token()
+		headers["Authorization"] = token
+		
+		print(f"API Headers: {headers}")
+		print(f"API Params: {params}")
+		print(f"API JSON body: {json}")
+		
 		# Отправка GET-запроса.
 		Response = self.__Session.request(method = method.upper(), url = url, headers = headers, params = params, json = json)
+		
+		print(f"API Response Status: {Response.status_code}")
+		print(f"API Response Headers: {dict(Response.headers)}")
+		if Response.status_code != 200:
+			print(f"API Response Text: {Response.text}")
 		
 		return Response
