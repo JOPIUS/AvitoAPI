@@ -52,8 +52,8 @@ class Profile:
 		
 		# Постоянно.
 		while True:
-			# Выжидание 23-ёх часов.
-			sleep(1380)
+			# Выжидание 23-ёх часов (в секундах).
+			sleep(23 * 60 * 60)
 			# Обновление токен.
 			self.refresh_access_token()
 			
