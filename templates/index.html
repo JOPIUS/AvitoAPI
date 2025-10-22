@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Авито Мессенджер - Панель управления</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 20px; }
+        .card { margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stat-card { text-align: center; padding: 20px; }
+        .stat-value { font-size: 2rem; font-weight: bold; }
+        .chat-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .chat-item:hover { background-color: #f8f9fa; }
+        .message-list { max-height: 400px; overflow-y: auto; }
+        .message-item { padding: 10px; margin: 5px 0; border-radius: 5px; }
+        .message-in { background-color: #e3f2fd; text-align: left; }
+        .message-out { background-color: #c8e6c9; text-align: right; }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .status-badge { font-size: 0.8rem; }
+        #chatsList { max-height: 500px; overflow-y: auto; }
+        .application-item { padding: 10px; border: 1px solid #dee2e6; border-radius: 5px; margin-bottom: 10px; }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-comments"></i> Авито Мессенджер
+            </a>
+            <span class="navbar-text text-white">
+                <i class="fas fa-user"></i> Профиль: {{ profile_number }}
+            </span>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <!-- Статистика -->
+        <div class="row mb-4">
+            <!-- Общая статистика -->
+            <div class="col-md-2">
+                <div class="card stat-card bg-primary text-white">
+                    <div class="stat-value" id="statChats">0</div>
+                    <div style="font-size: 0.75rem;">Всего чатов</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card stat-card bg-success text-white">
+                    <div class="stat-value" id="statBalance">0 ₽</div>
+                    <div style="font-size: 0.75rem;">Баланс</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card stat-card bg-info text-white">
+                    <div class="stat-value" id="statApplications">0</div>
+                    <div style="font-size: 0.75rem;">Откликов</div>
+                </div>
+            </div>
+            <div class="col-md-1">
+                <div class="card stat-card bg-warning text-white">
+                    <div class="stat-value" style="font-size: 1.5rem;" id="statAutoReplies">0</div>
+                    <div style="font-size: 0.65rem;">Авто<br>ответов</div>
+                </div>
+            </div>
+            
+            <!-- Метрики чатов -->
+            <div class="col-md-5">
+                <div class="card bg-dark text-white">
+                    <div class="card-body p-2">
+                        <div class="row text-center">
+                            <div class="col">
+                                <div style="font-size: 1.5rem; font-weight: bold;" id="metric1">0</div>
+                                <small style="font-size: 0.65rem;">Прочитал<br>Нет ответа</small>
+                            </div>
+                            <div class="col">
+                                <div style="font-size: 1.5rem; font-weight: bold;" id="metric2">0</div>
+                                <small style="font-size: 0.65rem;">Не читал</small>
+                            </div>
+                            <div class="col">
+                                <div style="font-size: 1.5rem; font-weight: bold;" id="metric3">0</div>
+                                <small style="font-size: 0.65rem;">Не писали</small>
+                            </div>
+                            <div class="col">
+                                <div style="font-size: 1.5rem; font-weight: bold;" id="metric4">0</div>
+                                <small style="font-size: 0.65rem;">Ждут<br>ответ</small>
+                            </div>
+                            <div class="col">
+                                <div style="font-size: 1.5rem; font-weight: bold;" id="metric5">0</div>
+                                <small style="font-size: 0.65rem;">Авто<br>ответ</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Главный интерфейс -->
+        <div class="row">
+            <!-- Левая панель - Чаты -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <i class="fas fa-comments"></i> Чаты
+                        <div class="btn-group float-end" role="group">
+                            <button class="btn btn-sm btn-light" onclick="loadChats()" title="Обновить (лимит 100)">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                            <button class="btn btn-sm btn-warning" onclick="loadAllChats()" title="Загрузить ВСЕ чаты">
+                                <i class="fas fa-download"></i> ВСЕ
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="loading" id="chatsLoading">
+                            <div class="spinner-border text-primary"></div>
+                            <p>Загрузка чатов...</p>
+                        </div>
+                        <div id="chatsList"></div>
+                    </div>
+                </div>
+
+                <!-- Автоответчик -->
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <i class="fas fa-robot"></i> Автоответчик
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-success w-100" id="autoReplyToggle" onclick="toggleAutoReply()">
+                            <i class="fas fa-play"></i> Включить
+                        </button>
+                        <div class="mt-2 text-center">
+                            <span class="badge bg-secondary" id="autoReplyStatus">Выключен</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Центральная панель - Сообщения -->
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <i class="fas fa-envelope"></i> Сообщения
+                        <span id="currentChatName"></span>
+                    </div>
+                    <div class="card-body">
+                        <div class="message-list" id="messagesList">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-arrow-left"></i> Выберите чат слева
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="messageInput" 
+                                   placeholder="Введите сообщение..." disabled>
+                            <button class="btn btn-primary" id="sendButton" onclick="sendMessage()" disabled>
+                                <i class="fas fa-paper-plane"></i> Отправить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая панель - Отклики -->
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="fas fa-briefcase"></i> Отклики
+                        <div class="btn-group float-end" role="group">
+                            <button class="btn btn-sm btn-light" onclick="loadApplications()" title="Обновить (лимит 100)">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                            <button class="btn btn-sm btn-success" onclick="loadAllApplications()" title="Загрузить ВСЕ отклики">
+                                <i class="fas fa-download"></i> ВСЕ
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-2" style="max-height: 600px; overflow-y: auto;">
+                        <div class="loading" id="applicationsLoading">
+                            <div class="spinner-border text-warning"></div>
+                        </div>
+                        <div id="applicationsList">
+                            <p class="text-muted text-center">Нажмите "Обновить" для загрузки</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Скрипты -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    
+    <script>
+        let currentChatId = null;
+        let socket = io();
+
+        // Инициализация при загрузке
+        window.onload = function() {
+            console.log('Инициализация приложения...');
+            loadStats();
+            loadAllChats();  // Загрузка ВСЕХ чатов (макс 1100)
+            loadAllApplications();  // Загрузка ВСЕХ откликов
+            loadChatMetrics();  // Загрузка метрик чатов
+            loadAutoReplyStatus();
+            
+            // WebSocket события
+            socket.on('connect', function() {
+                console.log('WebSocket подключен');
+            });
+            
+            socket.on('auto_reply_sent', function(data) {
+                showNotification('Автоответ отправлен: ' + data.user_name);
+                loadAutoReplyStatus();
+            });
+        };
+
+        // Загрузка статистики
+        function loadStats() {
+            // Баланс
+            fetch('/api/balance')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.total !== undefined) {
+                        document.getElementById('statBalance').textContent = data.total.toFixed(2) + ' ₽';
+                    }
+                });
+
+            // Отклики
+            fetch('/api/applications?days=7&limit=100')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.total !== undefined) {
+                        document.getElementById('statApplications').textContent = data.total;
+                    }
+                });
+
+            // Автоответы
+            fetch('/api/auto-reply/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.total_sent !== undefined) {
+                        document.getElementById('statAutoReplies').textContent = data.total_sent;
+                    }
+                });
+        }
+
+        // Загрузка чатов
+        function loadChats() {
+            document.getElementById('chatsLoading').style.display = 'block';
+            
+            fetch('/api/chats?limit=50')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('chatsLoading').style.display = 'none';
+                    
+                    if (data.chats) {
+                        document.getElementById('statChats').textContent = data.total;
+                        renderChats(data.chats);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки чатов:', error);
+                    document.getElementById('chatsLoading').style.display = 'none';
+                });
+        }
+
+        // Отрисовка чатов
+        function renderChats(chats) {
+            const container = document.getElementById('chatsList');
+            container.innerHTML = '';
+            
+            chats.forEach(chat => {
+                const chatDiv = document.createElement('div');
+                chatDiv.className = 'chat-item';
+                chatDiv.onclick = () => openChat(chat);
+                
+                // Находим собеседника
+                let userName = 'Неизвестно';
+                if (chat.users) {
+                    const otherUser = chat.users.find(u => u.id != {{ profile_number }});
+                    if (otherUser) userName = otherUser.name;
+                }
+                
+                // Последнее сообщение
+                let lastMsg = '';
+                if (chat.last_message && chat.last_message.content) {
+                    lastMsg = chat.last_message.content.text || '';
+                    if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
+                }
+                
+                chatDiv.innerHTML = `
+                    <strong>${userName}</strong><br>
+                    <small class="text-muted">${lastMsg}</small>
+                `;
+                
+                container.appendChild(chatDiv);
+            });
+        }
+
+        // Открыть чат
+        function openChat(chat) {
+            currentChatId = chat.id;
+            
+            // Находим имя собеседника
+            let userName = 'Неизвестно';
+            if (chat.users) {
+                const otherUser = chat.users.find(u => u.id != {{ profile_number }});
+                if (otherUser) userName = otherUser.name;
+            }
+            
+            document.getElementById('currentChatName').textContent = ' - ' + userName;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            
+            loadMessages(chat.id);
+        }
+
+        // Загрузка сообщений
+        function loadMessages(chatId) {
+            fetch(`/api/chats/${chatId}/messages?limit=50`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.messages) {
+                        renderMessages(data.messages);
+                    }
+                })
+                .catch(error => console.error('Ошибка загрузки сообщений:', error));
+        }
+
+        // Отрисовка сообщений
+        function renderMessages(messages) {
+            const container = document.getElementById('messagesList');
+            container.innerHTML = '';
+            
+            // Сообщения в обратном порядке (сначала старые)
+            messages.reverse().forEach(msg => {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message-item ' + (msg.direction === 'out' ? 'message-out' : 'message-in');
+                
+                let text = '';
+                if (msg.content && msg.content.text) {
+                    text = msg.content.text;
+                } else if (msg.type === 'system') {
+                    text = '[Системное сообщение]';
+                }
+                
+                msgDiv.textContent = text;
+                container.appendChild(msgDiv);
+            });
+            
+            // Прокрутка вниз
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Отправка сообщения
+        function sendMessage() {
+            if (!currentChatId) return;
+            
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            fetch(`/api/chats/${currentChatId}/send`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: message})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    input.value = '';
+                    loadMessages(currentChatId);
+                } else {
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка отправки:', error);
+                alert('Ошибка отправки сообщения');
+            });
+        }
+
+        // Enter для отправки
+        document.addEventListener('DOMContentLoaded', function() {
+            const input = document.getElementById('messageInput');
+            if (input) {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        sendMessage();
+                    }
+                });
+            }
+        });
+
+        // Автоответчик
+        function toggleAutoReply() {
+            fetch('/api/auto-reply/toggle', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: 'toggle'})
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadAutoReplyStatus();
+            })
+            .catch(error => console.error('Ошибка переключения автоответчика:', error));
+        }
+
+        function loadAutoReplyStatus() {
+            fetch('/api/auto-reply/status')
+                .then(response => response.json())
+                .then(data => {
+                    const button = document.getElementById('autoReplyToggle');
+                    const status = document.getElementById('autoReplyStatus');
+                    
+                    if (data.active) {
+                        button.innerHTML = '<i class="fas fa-stop"></i> Выключить';
+                        button.className = 'btn btn-danger w-100';
+                        status.textContent = 'Активен';
+                        status.className = 'badge bg-success';
+                    } else {
+                        button.innerHTML = '<i class="fas fa-play"></i> Включить';
+                        button.className = 'btn btn-success w-100';
+                        status.textContent = 'Выключен';
+                        status.className = 'badge bg-secondary';
+                    }
+                })
+                .catch(error => console.error('Ошибка загрузки статуса:', error));
+        }
+
+        // Загрузка откликов
+        function loadApplications() {
+            document.getElementById('applicationsLoading').style.display = 'block';
+            
+            fetch('/api/applications?days=7&limit=50')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('applicationsLoading').style.display = 'none';
+                    
+                    if (data.applications && data.ids) {
+                        // Получаем детали
+                        return fetch('/api/applications/details', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ids: data.ids.slice(0, 20)})
+                        });
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.applications) {
+                        renderApplications(data.applications);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки откликов:', error);
+                    document.getElementById('applicationsLoading').style.display = 'none';
+                });
+        }
+
+        // Отрисовка откликов
+        function renderApplications(applications) {
+            const container = document.getElementById('applicationsList');
+            container.innerHTML = '';
+            
+            applications.forEach(app => {
+                const appDiv = document.createElement('div');
+                appDiv.className = 'application-item';
+                
+                // Получаем данные кандидата
+                let candidateName = 'Неизвестно';
+                if (app.applicant && app.applicant.data) {
+                    candidateName = app.applicant.data.name || 'Неизвестно';
+                }
+                
+                // Есть ли чат
+                let chatBadge = '';
+                if (app.contacts && app.contacts.chat && app.contacts.chat.value) {
+                    chatBadge = '<span class="badge bg-success">Есть чат</span>';
+                }
+                
+                // Просмотрен
+                let viewedBadge = app.is_viewed ? 
+                    '<span class="badge bg-info">Просмотрен</span>' : 
+                    '<span class="badge bg-warning">Новый</span>';
+                
+                appDiv.innerHTML = `
+                    <strong>${candidateName}</strong><br>
+                    <small class="text-muted">Вакансия: ${app.vacancy_id}</small><br>
+                    ${viewedBadge} ${chatBadge}
+                `;
+                
+                container.appendChild(appDiv);
+            });
+        }
+
+        function showNotification(message) {
+            console.log('Уведомление:', message);
+            // Можно добавить toast-уведомления
+        }
+
+        // ============================================================================
+        // НОВЫЕ ФУНКЦИИ - ПОЛУЧЕНИЕ ВСЕХ ДАННЫХ
+        // ============================================================================
+        
+        // Загрузка ВСЕХ чатов через пагинацию
+        function loadAllChats() {
+            document.getElementById('chatsLoading').style.display = 'block';
+            
+            fetch('/api/chats/all')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('chatsLoading').style.display = 'none';
+                    
+                    if (data.chats) {
+                        document.getElementById('statChats').textContent = data.total;
+                        renderChats(data.chats);
+                        showNotification(`Загружено ${data.total} чатов (все доступные)`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки всех чатов:', error);
+                    document.getElementById('chatsLoading').style.display = 'none';
+                    alert('Ошибка загрузки всех чатов');
+                });
+        }
+        
+        // Загрузка ВСЕХ откликов через пагинацию
+        function loadAllApplications() {
+            document.getElementById('applicationsLoading').style.display = 'block';
+            
+            fetch('/api/applications/all?days=30')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('applicationsLoading').style.display = 'none';
+                    
+                    if (data.total !== undefined) {
+                        document.getElementById('statApplications').textContent = data.total;
+                        
+                        // Получаем детальную информацию
+                        if (data.ids && data.ids.length > 0) {
+                            const batchSize = 20; // Обрабатываем по 20 откликов
+                            const batches = [];
+                            
+                            for (let i = 0; i < data.ids.length; i += batchSize) {
+                                batches.push(data.ids.slice(i, i + batchSize));
+                            }
+                            
+                            let allDetails = [];
+                            
+                            // Последовательно загружаем батчи
+                            const loadBatch = (batchIndex) => {
+                                if (batchIndex >= batches.length) {
+                                    renderApplications(allDetails);
+                                    showNotification(`Загружено ${allDetails.length} откликов (все доступные)`);
+                                    return;
+                                }
+                                
+                                fetch('/api/applications/details', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({ids: batches[batchIndex]})
+                                })
+                                .then(response => response.json())
+                                .then(detailData => {
+                                    if (detailData.applications) {
+                                        allDetails = allDetails.concat(detailData.applications);
+                                    }
+                                    loadBatch(batchIndex + 1);
+                                })
+                                .catch(error => {
+                                    console.error('Ошибка загрузки батча:', error);
+                                    loadBatch(batchIndex + 1); // Продолжаем даже при ошибке
+                                });
+                            };
+                            
+                            loadBatch(0);
+                        } else {
+                            document.getElementById('applicationsList').innerHTML = 
+                                '<p class="text-muted text-center">Откликов не найдено</p>';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки всех откликов:', error);
+                    document.getElementById('applicationsLoading').style.display = 'none';
+                    alert('Ошибка загрузки всех откликов');
+                });
+        }
+
+        // Загрузка метрик чатов
+        function loadChatMetrics() {
+            fetch('/api/chats/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.metrics) {
+                        // Обновляем счетчик всего чатов
+                        document.getElementById('statChats').textContent = data.total_chats || 0;
+                        
+                        // Обновляем метрики
+                        document.getElementById('metric1').textContent = data.metrics.wrote_read_no_reply || 0;
+                        document.getElementById('metric2').textContent = data.metrics.wrote_unread || 0;
+                        document.getElementById('metric3').textContent = data.metrics.not_wrote || 0;
+                        document.getElementById('metric4').textContent = data.metrics.waiting_reply || 0;
+                        document.getElementById('metric5').textContent = data.metrics.auto_reply_sent || 0;
+                        
+                        console.log(`Метрики обновлены: ${data.total_chats} чатов проанализировано`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки метрик:', error);
+                });
+        }
+
+        // Автообновление каждые 30 секунд
+        setInterval(function() {
+            loadStats();
+            if (currentChatId) {
+                loadMessages(currentChatId);
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
