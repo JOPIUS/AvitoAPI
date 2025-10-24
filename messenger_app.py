@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Добавляем путь к AvitoAPI
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'AvitoAPI', 'src'))
 
 from AvitoAPI.Profile import Profile
 
